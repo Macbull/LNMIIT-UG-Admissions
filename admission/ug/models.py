@@ -27,9 +27,11 @@ class AdmissionDetail(models.Model):
 	def conductNextRound(self,date):	
 
 		previous_round=self.round_set.order_by('-round_set')[0].roundNumber
+		previous_round.conclude()
+
 		if date>previous_round.fees_deadline and previous_round.concluded==True:
 			cround = Round.create(roundNumber = previous_round+1,fees_deadline=date,part_of=self)
-			cround.conduct(self.branch_set,self.application_set.filter(is_valid=True).filter(~Q(is_eligible_for_next_round = 0)))
+			cround.conduct(self.branch_set,self.application_set.filter(is_valid=True).filter(is_eligible_for_next_round = 0))
 			return cround.id
 		else:
 			return -1
@@ -88,7 +90,17 @@ class Round(models.Model):
 					dictwait[branch.abbreviation]+=1
 					WaitingList.create(branch=branch,councelling_round=self,waiting=dictwait[branch.abbreviation],application=app)
 		
-	# def conclude(self):
+	def conclude(self):
+		seats=self.allotedSeat_set.all()
+		for seat in seats:
+			app=seat.application
+			if app.fees_status==0:
+				app.eligible_for_next_round=-1
+				seat.branch.updateSeatsLeft(1)
+			if seat.branch==app.preference_set.get(priority=1).branch:
+				app.eligible_for_next_round=1
+		self.concluded=True
+
 
 
 
