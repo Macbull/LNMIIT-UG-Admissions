@@ -43,9 +43,9 @@ INSTALLED_APPS = (
     'ug',
 )
 
-MANDRILL_API_KEY = "<your Mandrill key>"
+MANDRILL_API_KEY = "4bC2af9pRH-bVsHgxYV0Lw"
 EMAIL_BACKEND = "djrill.mail.backends.djrill.DjrillBackend"
-DEFAULT_FROM_EMAIL = "vishuquiz@gmail.com" 
+DEFAULT_FROM_EMAIL = "vnarwal95@gmail.com" 
 
 MIDDLEWARE_CLASSES = (
     'django.contrib.sessions.middleware.SessionMiddleware',

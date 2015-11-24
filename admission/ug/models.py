@@ -19,25 +19,34 @@ class AdmissionDetail(models.Model):
 	commence_date = models.DateField(auto_now_add=True)
 	application_deadline = models.DateField()
 	cutoff_marks = models.IntegerField()
-	no_of_rounds = models.IntegerField()
+	# no_of_rounds = models.IntegerField()
 
 	def getAllRounds(self):
 		return self.round_set.all()
 
 	def conductNextRound(self,date):	
 
-		previous_round=self.round_set.order_by('-round_set')[0].roundNumber
-		previous_round.conclude()
+		
+		if self.round_set.count():
+			previous_round=self.round_set.order_by('-roundNumber')[0]
+			previous_round.conclude()
 
-		if date>previous_round.fees_deadline and previous_round.concluded==True:
-			cround = Round.create(roundNumber = previous_round+1,fees_deadline=date,part_of=self)
-			cround.conduct(self.branch_set,self.application_set.filter(is_valid=True).filter(is_eligible_for_next_round = 0))
-			return cround.id
+			if date>previous_round.fees_deadline and previous_round.concluded==True:
+				cround = Round(roundNumber = previous_round.roundNumber+1,fees_deadline=date,part_of=self)
+				cround.save()
+				cround.conduct(self.branch_set,self.application_set.filter(is_valid=True).filter(eligible_for_next_round = 0))
+				return cround.id
+			else:
+				return -1
 		else:
-			return -1
+			cround = Round(roundNumber = 1,fees_deadline=date,part_of=self)
+			cround.save()
+			cround.conduct(self.branch_set,self.application_set.filter(is_valid=True).filter(eligible_for_next_round = 0))
+			return cround.id
+
 
 	def concludeCurrentRound(self):
-		current_round=self.round_set.order_by('-round_set')[0]
+		current_round=self.round_set.order_by('-roundNumber')[0]
 		current_round.conclude()
 
 class AdminProfile(models.Model):
@@ -72,7 +81,7 @@ class Round(models.Model):
 
 	def conduct(self,branches,appls):
 		dictwait = {}
-		for branch in branches:
+		for branch in branches.all():
 			dictwait[branch.abbreviation]=0
 
 		appls=appls.order_by('-jee_main_marks')
@@ -82,14 +91,16 @@ class Round(models.Model):
 			for pref in prefs:
 				branch=pref.branch
 				if branch.seats_left>0 and alloted==False:
-					AllotedSeat.create(branch=branch,councelling_round=self,application=app)
+					a=AllotedSeat(branch=branch,councelling_round=self,application=app)
+					a.save()
 					branch.updateSeatsLeft(-1)
 					alloted=True
 					app.sendConfirmation(branch,self)
 				else:
 					dictwait[branch.abbreviation]+=1
-					WaitingList.create(branch=branch,councelling_round=self,waiting=dictwait[branch.abbreviation],application=app)
-		
+					w=WaitingList(branch=branch,councelling_round=self,waiting=dictwait[branch.abbreviation],application=app)
+					w.save()
+
 	def conclude(self):
 		seats=self.allotedSeat_set.all()
 		for seat in seats:
@@ -114,8 +125,8 @@ class Applicant(models.Model):
 
 class Application(models.Model):
 	applicant = models.ForeignKey(Applicant) 
-	#date_applied = models.DateTimeField(auto_now_add=True)
-	#an applicant can apply again next year, but will need to create new application
+	date_applied = models.DateTimeField(auto_now_add=True)
+	# an applicant can apply again next year, but will need to create new application
 	date_of_birth = models.DateField(null=False)
 	jee_main_marks = models.IntegerField(null=False,validators=[
             MaxValueValidator(360),
@@ -135,12 +146,12 @@ class Application(models.Model):
 		for preference in preference_set.all():
 			preference.getCurrentStatus()
 
-	def sendConfirmation(branch,cround):
-		message = "You have been alloted seat in The LNM-IIT in branch "+branch.abbreviation+", in councelling round no "+cround.roundNumber+"."
-		if fees_status==0:
-			message+=" You have to submit fees by "+cround.fees_deadline+" otherwise your candidature will be cancelled."
+	def sendConfirmation(self,branch,cround):
+		message = "You have been alloted seat in The LNM-IIT in branch " + branch.abbreviation + ", in councelling round no "+str(cround.roundNumber)+"."
+		if self.fees_status==0:
+			message+=" You have to submit fees by "+str(cround.fees_deadline)+" otherwise your candidature will be cancelled."
 
-			send_mail("Congratulations ", message,"LNMIIT <vnarwal95@gmail.com>", [app.applicant.email])
+			send_mail("Congratulations ", message,"LNMIIT <vnarwal95@gmail.com>", [self.applicant.email])
 #	def getInfo():
 #	def is_eligible_for_next_round():
 	class Meta:

@@ -11,7 +11,7 @@ class ApplicantViewSet(viewsets.ModelViewSet):
     queryset = models.Applicant.objects.all()
     serializer_class = ApplicantSerializer
 
-    @list_route(methods=['GET'])
+    @detail_route(methods=['GET'])
     def status(self, request, **kwargs):
     	preferences = self.request.user.applicant.application_set.order_by('-date_applied')[0].preference_set.order_by('priority').objects.all()
     	serializer = PreferenceSerializer(instance = preferences,many=True)
@@ -34,7 +34,7 @@ class BranchViewSet(viewsets.ModelViewSet):
 
 class PreferenceViewSet(viewsets.ModelViewSet):
 	queryset = models.Preference.objects.all()
-	serializer_class = PreferenceSerializer
+	serializer_class = WPreferenceSerializer
 
 class RoundViewSet(viewsets.ModelViewSet):
 	queryset = models.Round.objects.all()
@@ -47,21 +47,23 @@ class RoundViewSet(viewsets.ModelViewSet):
 
 class AllotedSeatViewSet(viewsets.ModelViewSet):
 	queryset = models.AllotedSeat.objects.all()
-	serializer_class = AllotedSeatSerializer
+	serializer_class = WAllotedSeatSerializer
 
 class WaitingListViewSet(viewsets.ModelViewSet):
 	queryset = models.WaitingList.objects.all()
 	serializer_class = WaitingListSerializer
 
-class UserViewSet(viewsets.ModelViewSet):
-	queryset = User.objects.all()
-	serializer_class = UserSerializer
+class ApplicationViewSet(viewsets.ModelViewSet):
+	queryset = models.Application.objects.all()
+	serializer_class = ApplicationSerializer
+
+
 
 class AdmissionDetailViewSet(viewsets.ModelViewSet):
 	queryset = models.AdmissionDetail.objects.all()
 	serializer_class = AdmissionDetailSerializer
 
-	@list_route(methods=['GET'])
+	@list_route(methods=['post'])
 	def conductNextRound(self, request, **kwargs):
 		admdet=models.AdmissionDetail.objects.all().order_by('-year')[0]
 		cround = admdet.conductNextRound(self.request.data['date'])

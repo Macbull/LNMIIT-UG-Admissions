@@ -17,7 +17,7 @@ from django.conf.urls import include, url
 from django.contrib import admin
 from rest_framework.routers import SimpleRouter
 from rest_framework.authtoken import views
-from ug.viewsets import UserViewSet,ApplicantViewSet,BranchViewSet,PreferenceViewSet,RoundViewSet,AllotedSeatViewSet,WaitingListViewSet
+from ug.viewsets import ApplicationViewSet,AdmissionDetailViewSet,ApplicantViewSet,BranchViewSet,PreferenceViewSet,RoundViewSet,AllotedSeatViewSet,WaitingListViewSet
 router = SimpleRouter(trailing_slash=True)
 router.register(r'api/applicant',ApplicantViewSet)
 router.register(r'api/branch',BranchViewSet)
@@ -25,7 +25,9 @@ router.register(r'api/preference',PreferenceViewSet)
 router.register(r'api/round',RoundViewSet)
 router.register(r'api/allotedSeat',AllotedSeatViewSet)
 router.register(r'api/waitingList',WaitingListViewSet)
-router.register(r'api/user',UserViewSet)
+router.register(r'api/session',AdmissionDetailViewSet)
+router.register(r'api/application',ApplicationViewSet)
+router.register(r'api/preference',PreferenceViewSet)
 
 
 urlpatterns = [

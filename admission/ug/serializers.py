@@ -25,7 +25,7 @@ class ApplicantSerializer(serializers.ModelSerializer):
 			return '-'
 	class Meta:
 		model = models.Applicant
-		fields = ('name','address','email','mobile','father_name','jee_main_marks','jee_main_rank','dob')
+		fields = ('user','name','address','email','mobile','father_name','jee_main_marks','jee_main_rank','dob')
 		read_only_fields = ('jee_main_rank','jee_main_marks','dob')
 class BranchSerializer(serializers.ModelSerializer):
 	class Meta:
@@ -45,6 +45,10 @@ class PreferenceSerializer(serializers.ModelSerializer):
 	class Meta:
 		model = models.Preference
 
+class WPreferenceSerializer(serializers.ModelSerializer):
+	class Meta:
+		model = models.Preference
+
 class RoundSerializer(serializers.ModelSerializer):
 	class Meta:
 		model = models.Round
@@ -55,13 +59,22 @@ class AllotedSeatSerializer(serializers.ModelSerializer):
 	class Meta:
 		model = models.AllotedSeat
 
+class WAllotedSeatSerializer(serializers.ModelSerializer):
+	class Meta:
+		model = models.AllotedSeat
+
 class WaitingListSerializer(serializers.ModelSerializer):
 	class Meta:
 		model = models.WaitingList
 
 class AdmissionDetailSerializer(serializers.ModelSerializer):
 	class Meta:
-		model = models.AddmissionDetail
-class UserSerializer(serializers.ModelSerializer):
+		model = models.AdmissionDetail
+
+class ApplicationSerializer(serializers.ModelSerializer):
 	class Meta:
-		model = User
+		model = models.Application
+
+class AdminProfileSerializer(serializers.ModelSerializer):
+	class Meta:
+		model = models.AdminProfile
