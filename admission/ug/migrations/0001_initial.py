@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 
 from django.db import migrations, models
 from django.conf import settings
+import django.core.validators
 
 
 class Migration(migrations.Migration):
@@ -55,14 +56,13 @@ class Migration(migrations.Migration):
             name='Application',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('date_applied', models.DateTimeField(auto_now_add=True)),
                 ('date_of_birth', models.DateField()),
-                ('jee_main_marks', models.IntegerField()),
+                ('jee_main_marks', models.IntegerField(validators=[django.core.validators.MaxValueValidator(360), django.core.validators.MinValueValidator(-90)])),
                 ('jee_main_rank', models.IntegerField()),
                 ('high_school_marks', models.IntegerField()),
                 ('is_valid', models.BooleanField()),
-                ('eligible_for_next_round', models.BooleanField()),
-                ('fees_status', models.IntegerField()),
+                ('eligible_for_next_round', models.IntegerField(default=0)),
+                ('fees_status', models.IntegerField(default=0)),
                 ('applicant', models.ForeignKey(to='ug.Applicant')),
                 ('session', models.ForeignKey(to='ug.AdmissionDetail')),
             ],
@@ -75,7 +75,6 @@ class Migration(migrations.Migration):
                 ('seats_left', models.IntegerField()),
                 ('abbreviation', models.CharField(max_length=3)),
                 ('no_of_seats', models.IntegerField()),
-                ('closingrank', models.IntegerField()),
                 ('session', models.ForeignKey(to='ug.AdmissionDetail')),
             ],
         ),
@@ -84,7 +83,6 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('priority', models.IntegerField()),
-                ('status', models.BooleanField(default=False)),
                 ('application', models.ForeignKey(to='ug.Application')),
                 ('branch', models.ForeignKey(to='ug.Branch')),
             ],
@@ -97,7 +95,6 @@ class Migration(migrations.Migration):
                 ('timestamp', models.DateTimeField(auto_now=True)),
                 ('fees_deadline', models.DateField()),
                 ('concluded', models.BooleanField(default=False)),
-                ('conducted_by', models.ForeignKey(to='ug.AdminProfile')),
                 ('part_of', models.ForeignKey(to='ug.AdmissionDetail')),
             ],
         ),

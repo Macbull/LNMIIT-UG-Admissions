@@ -1,7 +1,18 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.db.models import Max
+from django.conf import settings
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from rest_framework.authtoken.models import Token
+from django.db.models import Q
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.core.mail import send_mail
 
+@receiver(post_save, sender=settings.AUTH_USER_MODEL)
+def create_auth_token(sender, instance=None, created=False, **kwargs):
+    if created:
+        Token.objects.create(user=instance)
 
 class AdmissionDetail(models.Model):
 	year = models.CharField(max_length=4)
@@ -9,12 +20,21 @@ class AdmissionDetail(models.Model):
 	application_deadline = models.DateField()
 	cutoff_marks = models.IntegerField()
 	no_of_rounds = models.IntegerField()
+
 	def getAllRounds(self):
 		return self.round_set.all()
-	def conductNextRound():		
+
+	def conductNextRound(self,date):	
+
 		previous_round=self.round_set.order_by('-round_set')[0].roundNumber
-		Round.create(previous_round+1,self.application_set)
-	def concludeCurrentRound():
+		if date>previous_round.fees_deadline and previous_round.concluded==True:
+			cround = Round.create(roundNumber = previous_round+1,fees_deadline=date,part_of=self)
+			cround.conduct(self.branch_set,self.application_set.filter(is_valid=True).filter(~Q(is_eligible_for_next_round = 0)))
+			return cround.id
+		else:
+			return -1
+
+	def concludeCurrentRound(self):
 		current_round=self.round_set.order_by('-round_set')[0]
 		current_round.conclude()
 
@@ -32,7 +52,7 @@ class Branch(models.Model):
 	seats_left = models.IntegerField()
 	abbreviation = models.CharField(max_length=3)
 	no_of_seats = models.IntegerField(null=False)
-	closingrank = models.IntegerField()
+	# closingrank = models.IntegerField()
 	def updateClosingRank(self,value):
 		self.closingrank = value
 	def getSeatsLeft(self):
@@ -45,14 +65,35 @@ class Round(models.Model):
 	timestamp = models.DateTimeField(auto_now=True)
 	fees_deadline = models.DateField(null=False)
 	part_of = models.ForeignKey(AdmissionDetail)
-	conducted_by = models.ForeignKey(AdminProfile)
+	# conducted_by = models.ForeignKey(AdminProfile)
 	concluded = models.BooleanField(default=False)
-  #  def conduct(self):
- #   def conclude(self):
+
+	def conduct(self,branches,appls):
+		dictwait = {}
+		for branch in branches:
+			dictwait[branch.abbreviation]=0
+
+		appls=appls.order_by('-jee_main_marks')
+		for app in appls:
+			prefs = app.preference_set.order_by('priority')
+			alloted = False
+			for pref in prefs:
+				branch=pref.branch
+				if branch.seats_left>0 and alloted==False:
+					AllotedSeat.create(branch=branch,councelling_round=self,application=app)
+					branch.updateSeatsLeft(-1)
+					alloted=True
+					app.sendConfirmation(branch,self)
+				else:
+					dictwait[branch.abbreviation]+=1
+					WaitingList.create(branch=branch,councelling_round=self,waiting=dictwait[branch.abbreviation],application=app)
+		
+	# def conclude(self):
+
 
 
 class Applicant(models.Model):
-	# user = models.OneToOneField(User)
+	user = models.OneToOneField(User)
 	name = models.CharField(max_length=30,null=False)
 	address = models.CharField(max_length=100)
 	email = models.EmailField()
@@ -64,13 +105,16 @@ class Application(models.Model):
 	#date_applied = models.DateTimeField(auto_now_add=True)
 	#an applicant can apply again next year, but will need to create new application
 	date_of_birth = models.DateField(null=False)
-	jee_main_marks = models.IntegerField(null=False)
+	jee_main_marks = models.IntegerField(null=False,validators=[
+            MaxValueValidator(360),
+            MinValueValidator(-90)
+        ])
 	jee_main_rank = models.IntegerField(null=False)
 	high_school_marks = models.IntegerField()
 	is_valid = models.BooleanField()
-	eligible_for_next_round = models.BooleanField()
+	eligible_for_next_round = models.IntegerField(default=0)
 	session = models.ForeignKey(AdmissionDetail)
-	fees_status = models.IntegerField()
+	fees_status = models.IntegerField(default=0)
 	def modifyFeesStatus(self,value):
 		fees_status = value
 	def getFeesStatus():
@@ -79,6 +123,12 @@ class Application(models.Model):
 		for preference in preference_set.all():
 			preference.getCurrentStatus()
 
+	def sendConfirmation(branch,cround):
+		message = "You have been alloted seat in The LNM-IIT in branch "+branch.abbreviation+", in councelling round no "+cround.roundNumber+"."
+		if fees_status==0:
+			message+=" You have to submit fees by "+cround.fees_deadline+" otherwise your candidature will be cancelled."
+
+			send_mail("Congratulations ", message,"LNMIIT <vnarwal95@gmail.com>", [app.applicant.email])
 #	def getInfo():
 #	def is_eligible_for_next_round():
 	class Meta:
@@ -90,13 +140,15 @@ class Preference(models.Model):
 	application = models.ForeignKey(Application,null=False)
 	priority = models.IntegerField(null=False)
 	branch = models.ForeignKey(Branch,null=False)
-	status = models.BooleanField(default=False)
+	# status = models.BooleanField(default=False)
 	def getCurrentStatus(self):
 		alloted = AllotedSeat.is_currently_alloted(self.application,self.branch)
 		if alloted==1:
 			return 0
-		else:
+		elif WaitingList.is_currently_waiting(self.application,self.branch):
 			return WaitingList.is_currently_waiting(self.application,self.branch)
+		else:
+			return -1
 	class Meta:
 		unique_together = ('application','priority')
 		unique_together = ('application','branch')

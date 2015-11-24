@@ -1,5 +1,6 @@
 from ug import models
 from rest_framework import serializers
+from django.contrib.auth.models import User
 
 
 class ApplicantSerializer(serializers.ModelSerializer):
@@ -30,7 +31,17 @@ class BranchSerializer(serializers.ModelSerializer):
 	class Meta:
 		model = models.Branch
 
+class ApplicationSerializer(serializers.ModelSerializer):
+	applicant = ApplicantSerializer(many=False)
+	class Meta:
+		model = models.Application
+
 class PreferenceSerializer(serializers.ModelSerializer):
+	branch = BranchSerializer(many=False)
+	current_status = serializers.SerializerMethodField()
+
+	def get_current_status(self,obj):
+		return obj.getCurrentStatus()
 	class Meta:
 		model = models.Preference
 
@@ -39,6 +50,8 @@ class RoundSerializer(serializers.ModelSerializer):
 		model = models.Round
 
 class AllotedSeatSerializer(serializers.ModelSerializer):
+	branch = BranchSerializer(many = False)
+	application = ApplicationSerializer()
 	class Meta:
 		model = models.AllotedSeat
 
@@ -46,3 +59,9 @@ class WaitingListSerializer(serializers.ModelSerializer):
 	class Meta:
 		model = models.WaitingList
 
+class AdmissionDetailSerializer(serializers.ModelSerializer):
+	class Meta:
+		model = models.AddmissionDetail
+class UserSerializer(serializers.ModelSerializer):
+	class Meta:
+		model = User
