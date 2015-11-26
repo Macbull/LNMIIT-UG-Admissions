@@ -8,6 +8,8 @@ from rest_framework.authtoken.models import Token
 from django.db.models import Q
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.core.mail import send_mail
+# import datetime
+from datetime import date as pydate, datetime 
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def create_auth_token(sender, instance=None, created=False, **kwargs):
@@ -31,7 +33,7 @@ class AdmissionDetail(models.Model):
 			previous_round=self.round_set.order_by('-roundNumber')[0]
 			previous_round.conclude()
 
-			if date>previous_round.fees_deadline and previous_round.concluded==True:
+			if pydate.today()>previous_round.fees_deadline and previous_round.concluded==True:
 				cround = Round(roundNumber = previous_round.roundNumber+1,fees_deadline=date,part_of=self)
 				cround.save()
 				cround.conduct(self.branch_set,self.application_set.filter(is_valid=True).filter(eligible_for_next_round = 0))
@@ -66,10 +68,12 @@ class Branch(models.Model):
 	# closingrank = models.IntegerField()
 	def updateClosingRank(self,value):
 		self.closingrank = value
+		self.save()
 	def getSeatsLeft(self):
 		return self.seats_left
 	def updateSeatsLeft(self,value):
 		self.seats_left = self.seats_left + value
+		self.save()
 
 class Round(models.Model):
 	roundNumber = models.IntegerField(null=False)
@@ -90,6 +94,7 @@ class Round(models.Model):
 			alloted = False
 			for pref in prefs:
 				branch=pref.branch
+				#To-Do: condition if same branch is alloted previously then alloted=True
 				if branch.seats_left>0 and alloted==False:
 					a=AllotedSeat(branch=branch,councelling_round=self,application=app)
 					a.save()
@@ -102,15 +107,21 @@ class Round(models.Model):
 					w.save()
 
 	def conclude(self):
-		seats=self.allotedSeat_set.all()
+		seats=self.allotedseat_set.all()
 		for seat in seats:
 			app=seat.application
 			if app.fees_status==0:
 				app.eligible_for_next_round=-1
+				app.save()
 				seat.branch.updateSeatsLeft(1)
+				# seat.valid=False
+				seat.save()
+
 			if seat.branch==app.preference_set.get(priority=1).branch:
 				app.eligible_for_next_round=1
+				app.save()
 		self.concluded=True
+		self.save()
 
 
 
@@ -140,6 +151,7 @@ class Application(models.Model):
 	fees_status = models.IntegerField(default=0)
 	def modifyFeesStatus(self,value):
 		fees_status = value
+		self.save()
 	def getFeesStatus():
 		return fees_status
 	def checkStatus():
@@ -181,10 +193,19 @@ class AllotedSeat(models.Model):
 	branch = models.ForeignKey(Branch,null=False)
 	councelling_round = models.ForeignKey(Round,null=False)
 	application = models.ForeignKey(Application,null=False)
+	# valid = models.BooleanField(default=True)
 	@staticmethod
 	def is_currently_alloted(application,branch):
-		return AllotedSeat.objects.filter(application=application,branch=branch)==AllotedSeat.objects.filter(application=application).order_by('-councelling_round__roundNumber')[0]
+		ab = AllotedSeat.objects.filter(application=application,branch=branch)
+		if ab:
+			return 1
+		else:
+			return 0
 
+	class Meta:
+		unique_together = ('branch','application')
+		unique_together = ('councelling_round','application')
+		
 class WaitingList(models.Model):
 	branch = models.ForeignKey(Branch,null=False)
 	councelling_round = models.ForeignKey(Round,null=False)
@@ -192,9 +213,14 @@ class WaitingList(models.Model):
 	application = models.ForeignKey(Application,null=False)
 	@staticmethod
 	def is_currently_waiting(application,branch):
-		return WaitingList.objects.filter(application=application,branch=branch).order_by('-councelling_round__roundNumber')[0].waiting
-
-
+		wtl = WaitingList.objects.filter(application=application,branch=branch).order_by('-councelling_round__roundNumber')
+		if wtl.count():
+			return wtl[0].waiting
+		else:
+			return -1
+		unique_together = ('branch','application')
+		unique_together = ('councelling_round','application')
+		unique_together = ('councelling_round','branch','waiting')
 
 
 

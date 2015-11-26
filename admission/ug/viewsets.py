@@ -11,9 +11,9 @@ class ApplicantViewSet(viewsets.ModelViewSet):
     queryset = models.Applicant.objects.all()
     serializer_class = ApplicantSerializer
 
-    @detail_route(methods=['GET'])
+    @list_route(methods=['GET'])
     def status(self, request, **kwargs):
-    	preferences = self.request.user.applicant.application_set.order_by('-date_applied')[0].preference_set.order_by('priority').objects.all()
+    	preferences = self.request.user.applicant.application_set.order_by('-date_applied')[0].preference_set.order_by('priority').all()
     	serializer = PreferenceSerializer(instance = preferences,many=True)
     	return Response(serializer.data, 200)
 
@@ -41,7 +41,8 @@ class RoundViewSet(viewsets.ModelViewSet):
 	serializer_class = RoundSerializer
 	@detail_route(methods=['GET'])
 	def status(self,request, **kwargs):
-		allotment=self.allotedSeat_set.all()
+		cround = self.get_object()
+		allotment=cround.allotedseat_set.all()
 		serializer = AllotedSeatSerializer(instance = allotment,many=True)
 		return Response(serializer.data, 200)
 
