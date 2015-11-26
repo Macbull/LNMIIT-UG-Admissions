@@ -93,18 +93,20 @@ class Round(models.Model):
 			prefs = app.preference_set.order_by('priority')
 			alloted = False
 			for pref in prefs:
-				branch=pref.branch
-				#To-Do: condition if same branch is alloted previously then alloted=True
-				if branch.seats_left>0 and alloted==False:
-					a=AllotedSeat(branch=branch,councelling_round=self,application=app)
-					a.save()
-					branch.updateSeatsLeft(-1)
+				if pref.getCurrentStatus()==0:
 					alloted=True
-					app.sendConfirmation(branch,self)
-				else:
-					dictwait[branch.abbreviation]+=1
-					w=WaitingList(branch=branch,councelling_round=self,waiting=dictwait[branch.abbreviation],application=app)
-					w.save()
+				if alloted==False:
+					branch=pref.branch
+					if branch.seats_left>0:
+						a=AllotedSeat(branch=branch,councelling_round=self,application=app)
+						a.save()
+						branch.updateSeatsLeft(-1)
+						alloted=True
+						app.sendConfirmation(branch,self)
+					else:
+						dictwait[branch.abbreviation]+=1
+						w=WaitingList(branch=branch,councelling_round=self,waiting=dictwait[branch.abbreviation],application=app)
+						w.save()
 
 	def conclude(self):
 		seats=self.allotedseat_set.all()
@@ -114,7 +116,7 @@ class Round(models.Model):
 				app.eligible_for_next_round=-1
 				app.save()
 				seat.branch.updateSeatsLeft(1)
-				# seat.valid=False
+				seat.valid=False
 				seat.save()
 
 			if seat.branch==app.preference_set.get(priority=1).branch:
@@ -193,7 +195,7 @@ class AllotedSeat(models.Model):
 	branch = models.ForeignKey(Branch,null=False)
 	councelling_round = models.ForeignKey(Round,null=False)
 	application = models.ForeignKey(Application,null=False)
-	# valid = models.BooleanField(default=True)
+	valid = models.BooleanField(default=True)
 	@staticmethod
 	def is_currently_alloted(application,branch):
 		ab = AllotedSeat.objects.filter(application=application,branch=branch)
@@ -205,7 +207,7 @@ class AllotedSeat(models.Model):
 	class Meta:
 		unique_together = ('branch','application')
 		unique_together = ('councelling_round','application')
-		
+
 class WaitingList(models.Model):
 	branch = models.ForeignKey(Branch,null=False)
 	councelling_round = models.ForeignKey(Round,null=False)
